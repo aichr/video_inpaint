@@ -128,6 +128,12 @@ def extract_frames(filename, output_folder, down_factor=2, crop_func=None):
     cap.release()
 
 
+def mask_bool_to_image(mask_bool, mask_name):
+    mask = mask_bool[:, :, np.newaxis].astype(np.uint8) * 255
+    mask = np.repeat(mask, 3, axis=2)
+    Image.fromarray(mask).save(mask_name)
+
+
 def run_zoe_segment(input, output_folder, bg_color=100, skip_existing=True, foreground_threshold=1.5):
     """Segment the foreground using zoe depth model. The foreground is defined as pixels
     with the depth value less than the foreground_threshold.
@@ -158,20 +164,23 @@ def run_zoe_segment(input, output_folder, bg_color=100, skip_existing=True, fore
         Image.fromarray(filter_image).save(filter_image_path)
 
         # convert mask to image
-        mask = mask_bool[:, :, np.newaxis].astype(np.uint8) * 255
-        mask = np.repeat(mask, 3, axis=2)
         mask_name = os.path.join(
             output_folder, f"{os.path.splitext(os.path.basename(png))[0]}_mask.png")
-        Image.fromarray(mask).save(mask_name)
+        mask_bool_to_image(mask_bool, mask_name)
     return mask_bool
 
 
 def face_detect(frame, border=1):
+    """
+    Detect face in the frame and save the face to a file.
+    Return the bounding box position of the face in (x, y, w, h).
+    """
     if isinstance(frame, str):
         frame = cv2.imread(frame)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    face_cascade = cv2.CascadeClassifier(
+        cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
     faces = face_cascade.detectMultiScale(gray, 1.1, 4)
 
     for i, (x, y, w, h) in enumerate(faces):
@@ -179,13 +188,12 @@ def face_detect(frame, border=1):
         y -= border
         w += 2 * border
         h += 2 * border
-        # face = frame[y:y + h, x:x + w]
-        # TODO: hack
-        face = frame[y-80:y + h+10, x:x + w]
+        face = frame[y:y + h, x:x + w]
         print(face.shape)
 
         cv2.imwrite("face_test.png", face)
         print(f"write to face_test.png")
+    return x, y, w, h
 
 
 if __name__ == "__main__":
@@ -198,18 +206,24 @@ if __name__ == "__main__":
     # new_w, new_h = 512, 512
     new_w, new_h = None, None
 
-    #extract_frames(
+    # extract_frames(
     #   filename,
     #   output_folder="./data/frames",
     #   crop_func=lambda frame: crop_func(frame, l, r, t, b, new_w, new_h),
-    #)
+    # )
 
     input_folder = "./data/frames"
     # run_zoe_segment(input_folder, output_folder=input_folder +
     #                 "_zoe", skip_existing=False)
     input_img = os.path.join(input_folder, "0001.png")
-    # mask_bool = run_zoe_segment(input_img, output_folder=input_folder+"_zoe", skip_existing=False)
+    mask_bool = run_zoe_segment(
+        input_img, output_folder=input_folder+"_zoe", skip_existing=False)
+    print(mask_bool.shape, mask_bool.dtype)
 
-    # TODO: cut out face 
-    # face_detect(input_img, border=4)
-    # print(mask_bool.shape, mask_bool.dtype)
+    # enlarge the face mask a bit with border=5
+    x, y, w, h = face_detect(input_img, border=5)
+
+    # only keep mask below the face
+    mask_bool[:y+h, :] = False
+    mask_bool_to_image(mask_bool, os.path.join(
+        input_folder, "0001_mask_face.png"))

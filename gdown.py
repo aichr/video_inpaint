@@ -33,7 +33,7 @@ def save_response_content(response, destination):
 if __name__ == "__main__":
     # download face parsing model
     file_id = '154JgKpzCPW82qINcVieuPH3fZ2e0P812'
-    destination_folder = "./face-parsing.PyTorch/res/cp/"
+    destination_folder = "./face-parsing.PyTorch/"
     os.makedirs(destination_folder, exist_ok=True)
 
     model = "79999_iter.pth"

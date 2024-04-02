@@ -1,3 +1,4 @@
+import glob
 import os
 import cv2
 import numpy as np
@@ -128,13 +129,63 @@ def extract_frames(filename, output_folder, down_factor=2, crop_func=None):
     cap.release()
 
 
+def video_overlay(video, input_folder, l, r, t, b):
+    """
+    overlay the images to the original video. Have to make sure the images are from the video.
+    """
+    # if not os.path.exists(output_folder):
+    #    os.makedirs(output_folder)
+
+    cap = cv2.VideoCapture(video)
+
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    input_images = sorted(glob.glob(os.path.join(input_folder, "*.png")))
+
+    # Process each frame and resize
+    idx = 0
+    while cap.isOpened() and idx < len(input_images):
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        img = Image.open(input_images[idx])
+        img = np.array(img)[:, :, :3]
+
+        H, W, C = frame.shape
+        left = np.clip(l, 0, W)
+        right = np.clip(W - r, left, W)
+        top = np.clip(t, 0, H)
+        bottom = np.clip(H - b, top, H)
+
+        frame[top:bottom, left:right, :] = img
+
+        # TODO: blend in the two images so they appear more natural
+        # Image.fromarray(frame).save(f"./{idx:04d}_overlay.png")
+
+        # fid = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+        print(idx)
+        idx += 1
+
+    cap.release()
+
+
 def mask_bool_to_image(mask_bool, mask_name):
     mask = mask_bool[:, :, np.newaxis].astype(np.uint8) * 255
     mask = np.repeat(mask, 3, axis=2)
     Image.fromarray(mask).save(mask_name)
 
 
-def run_zoe_segment(input, output_folder, bg_color=100, skip_existing=True, foreground_threshold=1.5):
+def create_zoe_model():
+    # Zoe_N
+    model_zoe_n = torch.hub.load(os.path.expanduser(
+        "~/fs/ZoeDepth"), "ZoeD_N", source="local", pretrained=True)
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    zoe = model_zoe_n.to(DEVICE)
+    return zoe
+
+
+def run_zoe_segment(input, output_folder, zoe=None, bg_color=100, skip_existing=True, foreground_threshold=1.5):
     """Segment the foreground using zoe depth model. The foreground is defined as pixels
     with the depth value less than the foreground_threshold.
 
@@ -147,13 +198,11 @@ def run_zoe_segment(input, output_folder, bg_color=100, skip_existing=True, fore
     else:
         png_files = [input]
 
-    # Zoe_N
-    model_zoe_n = torch.hub.load(os.path.expanduser(
-        "~/fs/ZoeDepth"), "ZoeD_N", source="local", pretrained=True)
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    zoe = model_zoe_n.to(DEVICE)
+    if zoe is None:
+        zoe = create_zoe_model()
 
     os.makedirs(output_folder, exist_ok=True)
+    masks = []
     for idx, png in enumerate(png_files):
         filter_image_path = os.path.join(output_folder, os.path.basename(png))
         if skip_existing and os.path.exists(filter_image_path):
@@ -167,10 +216,11 @@ def run_zoe_segment(input, output_folder, bg_color=100, skip_existing=True, fore
         mask_name = os.path.join(
             output_folder, f"{os.path.splitext(os.path.basename(png))[0]}_mask.png")
         mask_bool_to_image(mask_bool, mask_name)
-    return mask_bool
+        masks.append(mask_bool)
+    return masks
 
 
-def face_detect(frame, border=1):
+def face_detect(frame, border=0, output_path=None):
     """
     Detect face in the frame and save the face to a file.
     Return the bounding box position of the face in (x, y, w, h).
@@ -189,11 +239,19 @@ def face_detect(frame, border=1):
         w += 2 * border
         h += 2 * border
         face = frame[y:y + h, x:x + w]
-        print(face.shape)
 
-        cv2.imwrite("face_test.png", face)
-        print(f"write to face_test.png")
+        if output_path is not None:
+            cv2.imwrite(output_path, face)
+            print(f"write to {output_path}")
     return x, y, w, h
+
+
+def ffmpeg_concat(input_file="%04d.png", output_file="output.mp4"):
+    """Concatenate multiple video files into a single video file using ffmpeg."""
+    crf = 5  # lower the better
+    framerate = 25
+    cmd = f"ffmpeg -framerate {framerate} -i %04d.png -c:v libx264 -crf {crf} -pix_fmt yuv420p {output_file}"
+    os.system(cmd)
 
 
 if __name__ == "__main__":
@@ -206,24 +264,43 @@ if __name__ == "__main__":
     # new_w, new_h = 512, 512
     new_w, new_h = None, None
 
+    # 1. Extract frames from video
     # extract_frames(
     #   filename,
     #   output_folder="./data/frames",
     #   crop_func=lambda frame: crop_func(frame, l, r, t, b, new_w, new_h),
     # )
 
+    # 2. Run Zoe segmentation on the frames
     input_folder = "./data/frames"
-    # run_zoe_segment(input_folder, output_folder=input_folder +
-    #                 "_zoe", skip_existing=False)
+    # run_zoe_segment(input_folder, output_folder=input_folder + "_zoe", skip_existing=False)
     input_img = os.path.join(input_folder, "0001.png")
-    mask_bool = run_zoe_segment(
+    zoe_mask_bool = run_zoe_segment(
         input_img, output_folder=input_folder+"_zoe", skip_existing=False)
-    print(mask_bool.shape, mask_bool.dtype)
+    zoe_mask_bool = zoe_mask_bool[0]
+    # frame = cv2.imread(input_img)
+    # frame[~zoe_mask_bool[:, :, np.newaxis].repeat(3, axis=2)] = 0
 
-    # enlarge the face mask a bit with border=5
-    x, y, w, h = face_detect(input_img, border=5)
+    # Detect face in the frame
+    face_output_path = "face_test.png"
+    x, y, w, h = face_detect(input_img, border=0, output_path=face_output_path)
+
+    """
+    # Get face mask using face parsing
+    from face_parsing.test import get_face_mask
+    face_mask = get_face_mask(face_output_path, respth="./", cp="./face_parsing/79999_iter.pth")
+
+    frame = cv2.imread(input_img)
+    full_face_mask = np.zeros(frame.shape[:2], dtype=bool)
+    full_face_mask[y:y+h, x:x+w] = face_mask
+    mask_bool_to_image(full_face_mask, "full_face_mask.png")
+
+    # remove face mask from zoe mask
+    zoe_mask_bool[full_face_mask] = False
+    mask_bool_to_image(zoe_mask_bool, "final_mask.png")
+    """
 
     # only keep mask below the face
-    mask_bool[:y+h, :] = False
-    mask_bool_to_image(mask_bool, os.path.join(
+    zoe_mask_bool[:y+h, :] = False
+    mask_bool_to_image(zoe_mask_bool, os.path.join(
         input_folder, "0001_mask_face.png"))

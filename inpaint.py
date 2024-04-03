@@ -1,4 +1,5 @@
 import os
+from typing import List
 import torch
 from diffusers import AutoPipelineForInpainting
 from diffusers.utils import load_image, make_image_grid
@@ -21,7 +22,7 @@ def make_inpaint_condition(init_image, mask_image):
     return init_image
 
 
-def sd_inpaint(input_img: str, input_mask: str, prompt: str, negative_prompt: str, output_folder: str = None):
+def sd_inpaint(input_img: str, input_mask: str, prompt: List[str], positive_prompt: str, negative_prompt: str, output_folder: str = None, save_grid: bool = False):
 
     init_image = load_image(input_img)
     mask_image = load_image(input_mask)
@@ -71,53 +72,66 @@ def sd_inpaint(input_img: str, input_mask: str, prompt: str, negative_prompt: st
     # remove following line if xFormers is not installed or you have PyTorch 2.0 or higher installed
     pipeline.enable_xformers_memory_efficient_attention()
 
-    if use_controlnet:
-        if use_openpose:
-            from controlnet_aux import OpenposeDetector
+    for pid, prompt in enumerate(prompts):
+        kwargs = {
+            "prompt": prompt+", "+positive_prompt,
+            "negative_prompt": negative_prompt,
+            "image": init_image,
+            "mask_image": mask_image,
+            "num_inference_steps": infer_steps,
+            "height": h,
+            "width": w,
+            "strength": strength,
+            "guidance_scale": guidance_scale
+        }
+        if use_controlnet:
+            if use_openpose:
+                from controlnet_aux import OpenposeDetector
 
-            openpose = OpenposeDetector.from_pretrained(
-                'lllyasviel/ControlNet')
+                openpose = OpenposeDetector.from_pretrained(
+                    'lllyasviel/ControlNet')
 
-            pose_image = openpose(
-                init_image, include_body=True, include_hand=False, include_face=False)
-            pose_image = pose_image.resize((init_image.size), Image.NEAREST)
+                pose_image = openpose(
+                    init_image, include_body=True, include_hand=False, include_face=False)
+                pose_image = pose_image.resize(
+                    (init_image.size), Image.NEAREST)
 
-            repainted_image = pipeline(prompt=prompt, negative_prompt=negative_prompt, image=init_image,
-                                       mask_image=mask_image, num_inference_steps=infer_steps, height=h, width=w,
-                                       strength=strength, guidance_scale=guidance_scale, control_image=pose_image).images[0]
-            image_list = [init_image, mask_image, pose_image, repainted_image]
+                kwargs["control_image"] = pose_image
+                image_list = [init_image, mask_image, pose_image]
 
+            else:
+                control_image = make_inpaint_condition(init_image, mask_image)
+                kwargs["control_image"] = control_image
+                image_list = [init_image, mask_image, Image.fromarray(
+                    np.uint8(control_image[0][0])).convert('RGB')]
         else:
-            control_image = make_inpaint_condition(init_image, mask_image)
-            repainted_image = pipeline(prompt=prompt, negative_prompt=negative_prompt, image=init_image,
-                                       mask_image=mask_image, num_inference_steps=infer_steps, height=h, width=w,
-                                       strength=strength, guidance_scale=guidance_scale, control_image=control_image,
-                                       generator=torch.Generator(device="cuda")).images[0]
-            image_list = [init_image, mask_image, Image.fromarray(
-                np.uint8(control_image[0][0])).convert('RGB'), repainted_image]
-    else:
-        repainted_image = pipeline(prompt=prompt, negative_prompt=negative_prompt, image=init_image,
-                                   mask_image=mask_image, num_inference_steps=infer_steps, height=h, width=w,
-                                   strength=strength, guidance_scale=guidance_scale).images[0]
-        image_list = [init_image, mask_image, repainted_image]
+            image_list = [init_image, mask_image]
 
-    if apply_ovelay:
-        unmasked_unchanged_image = pipeline.image_processor.apply_overlay(
-            mask_image, init_image, repainted_image)
-        image_list.append(unmasked_unchanged_image)
+        repainted_image = pipeline(**kwargs).images[0]
+        image_list.append(repainted_image)
 
-    grid = make_image_grid(image_list, rows=1, cols=len(image_list))
+        if apply_ovelay:
+            unmasked_unchanged_image = pipeline.image_processor.apply_overlay(
+                mask_image, init_image, repainted_image)
+            image_list.append(unmasked_unchanged_image)
 
-    # saving images
-    prompt_str = prompt.replace(", ", ",").replace(" ", "_")[:20]
-    output_name = "inpainting_" + prompt_str + ".png"
-    grid_name = "grid_" + output_name
-    if output_folder is not None:
-        output_name = os.path.join(output_folder, output_name)
-        grid_name = os.path.join(output_folder, grid_name)
-    repainted_image.save(output_name)
-    grid.save(grid_name)
-    print(f"Saved inpainting result to {output_name}")
+        grid = make_image_grid(image_list, rows=1, cols=len(image_list))
+
+        # saving images
+        use_str = False
+        if use_str:
+            prompt_str = prompt.replace(", ", ",").replace(" ", "_")[:20]
+            output_name = "inpainting_" + prompt_str + ".png"
+        else:
+            output_name = "inpainting_" + str(pid) + ".png"
+        grid_name = "grid_" + output_name
+        if output_folder is not None:
+            output_name = os.path.join(output_folder, output_name)
+            grid_name = os.path.join(output_folder, grid_name)
+        repainted_image.save(output_name)
+        if save_grid:
+            grid.save(grid_name)
+        print(f"Saved inpainting result to {output_name}")
 
 
 if __name__ == "__main__":
@@ -130,6 +144,5 @@ if __name__ == "__main__":
 
     output_folder = "./output_inpaint"
     os.makedirs(output_folder, exist_ok=True)
-    for prompt in prompts:
-        sd_inpaint(input_img, input_mask, prompt+","+positive_prompt,
-                   negative_prompt, output_folder=output_folder)
+    sd_inpaint(input_img, input_mask, prompts, positive_prompt,
+               negative_prompt, output_folder=output_folder)

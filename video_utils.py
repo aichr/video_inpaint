@@ -5,6 +5,7 @@ import numpy as np
 from PIL import Image
 import torch
 import cv2
+import imageio
 
 
 def apply_mask(image, mask, grayscale=255):
@@ -18,7 +19,7 @@ def apply_mask(image, mask, grayscale=255):
     return overlay
 
 
-def zoe_segment(image_path, zoe, foreground_threshold=1.5, bg_color=225, return_mask=False): # Zoe_N
+def zoe_segment(image_path, zoe, foreground_threshold=1.5, bg_color=225, return_mask=False):  # Zoe_N
     # model_zoe_n = torch.hub.load(".", "ZoeD_N", source="local", pretrained=True)
     # DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     # zoe = model_zoe_n.to(DEVICE)
@@ -78,6 +79,13 @@ def video_down_sample(filename, down_factor=2):
     output.release()
 
     print("Video resizing completed!")
+
+
+def get_fps(video_path: str):
+    video = cv2.VideoCapture(video_path)
+    fps = video.get(cv2.CAP_PROP_FPS)
+    video.release()
+    return fps
 
 
 def crop_func(frame, l, r, t, b, new_w=None, new_h=None):
@@ -251,6 +259,30 @@ def ffmpeg_concat(input_file="%04d.png", output_file="output.mp4"):
     framerate = 25
     cmd = f"ffmpeg -framerate {framerate} -i %04d.png -c:v libx264 -crf {crf} -pix_fmt yuv420p {output_file}"
     os.system(cmd)
+
+
+def frame_to_video(video_path: str, frame_dir: str, fps=30, log=True):
+
+    first_img = True
+    writer = imageio.get_writer(video_path, fps=fps)
+
+    file_list = sorted(os.listdir(frame_dir))
+    for file_name in file_list:
+        if not (file_name.endswith('jpg') or file_name.endswith('png')):
+            continue
+
+        fn = os.path.join(frame_dir, file_name)
+        curImg = imageio.imread(fn)
+
+        if first_img:
+            H, W = curImg.shape[0:2]
+            if log:
+                print('img shape', (H, W))
+            first_img = False
+
+        writer.append_data(curImg)
+
+    writer.close()
 
 
 if __name__ == "__main__":

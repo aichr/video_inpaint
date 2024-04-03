@@ -7,7 +7,7 @@ import numpy as np
 from diffusers import ControlNetModel, StableDiffusionControlNetInpaintPipeline, UniPCMultistepScheduler
 from diffusers.utils import load_image, make_image_grid
 from PIL import Image
-from prompts import PROMPTS_FASHION, PROMPTS_HEYGEN_DEMO
+from prompt_constants import PROMPTS_FASHION, PROMPTS_HEYGEN_DEMO
 
 
 def make_inpaint_condition(init_image, mask_image):
@@ -22,7 +22,7 @@ def make_inpaint_condition(init_image, mask_image):
     return init_image
 
 
-def sd_inpaint(input_img: str, input_mask: str, prompt: List[str], positive_prompt: str, negative_prompt: str, output_folder: str = None, save_grid: bool = False):
+def sd_inpaint(input_img: str, input_mask: str, prompts: List[str], positive_prompt: str, negative_prompt: str, output_folder: str = None, save_grid: bool = False):
 
     init_image = load_image(input_img)
     mask_image = load_image(input_mask)

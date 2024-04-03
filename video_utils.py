@@ -253,11 +253,11 @@ def face_detect(frame, border=0, output_path=None):
     return x, y, w, h
 
 
-def ffmpeg_concat(input_file="%04d.png", output_file="output.mp4"):
+def ffmpeg_concat(input_file="%04d.png", fps=25, output_file="output.mp4"):
     """Concatenate multiple video files into a single video file using ffmpeg."""
     crf = 5  # lower the better
-    framerate = 25
-    cmd = f"ffmpeg -framerate {framerate} -i %04d.png -c:v libx264 -crf {crf} -pix_fmt yuv420p {output_file}"
+    cmd = f"ffmpeg -framerate {fps} -i {input_file} -c:v libx264 -crf {crf} -pix_fmt yuv420p {output_file}"
+    print(cmd)
     os.system(cmd)
 
 

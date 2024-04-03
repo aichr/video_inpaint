@@ -18,8 +18,7 @@ def apply_mask(image, mask, grayscale=255):
     return overlay
 
 
-def zoe_segment(image_path, zoe, foreground_threshold=1.5, bg_color=225, return_mask=False):
-    # Zoe_N
+def zoe_segment(image_path, zoe, foreground_threshold=1.5, bg_color=225, return_mask=False): # Zoe_N
     # model_zoe_n = torch.hub.load(".", "ZoeD_N", source="local", pretrained=True)
     # DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     # zoe = model_zoe_n.to(DEVICE)
@@ -284,6 +283,7 @@ if __name__ == "__main__":
     # Detect face in the frame
     face_output_path = "face_test.png"
     x, y, w, h = face_detect(input_img, border=0, output_path=face_output_path)
+    exit(-1)
 
     """
     # Get face mask using face parsing

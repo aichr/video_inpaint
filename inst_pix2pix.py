@@ -19,7 +19,7 @@ os.makedirs(ouptut_folder, exist_ok=True)
 idx = 0
 prompts = PROMPTS_HEYGEN_DEMO
 for prompt in prompts:
-    prompt = prompt
+    prompt = "wearing " + prompt
     repainted = pipe(prompt, image=image).images[0]
 
     image_list = [image, repainted]

@@ -1,17 +1,20 @@
 # Video Editing
 
-## Face parsing
+
+## Installation
 ```
-git clone https://github.com/zllrunning/face-parsing.PyTorch.git
-python gdown.py
+pip install -r requirements.txt
 ```
 
-## Ebsynth
+### Ebsynth
 ```
 git clone https://github.com/SingleZombie/ebsynth.git
 python install.py
 ```
 
-## Improvement (TODOs, priority from High to Low)
-- tune ebsynth to get better video
-- use SAM for segmentation
+### Face parsing (optional)
+Optional, for getting better face masks for inpainting
+```
+git clone https://github.com/zllrunning/face-parsing.PyTorch.git
+python gdown.py
+```

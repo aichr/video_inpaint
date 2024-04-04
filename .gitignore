@@ -2,3 +2,6 @@ data/*
 __pycache__/*
 *.png
 ebsynth/
+face_parsing/
+*.mp4
+output_ebsynth/

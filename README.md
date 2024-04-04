@@ -13,6 +13,12 @@ This is a simple pipeline to edit the demo video by inpainting. For the Heygen s
 
 - Use ebsynth to synthesize the frames, and concat the frames into the final mp4.
 
+
+
+https://github.com/aichr/video_inpaint/assets/113976014/f34ea1be-1b28-465e-a7e0-56c3e6d9255b
+
+
+
 ## Installation
 ```
 pip install -r requirements.txt

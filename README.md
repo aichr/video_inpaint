@@ -67,7 +67,7 @@ you directly run the `pipeline.py`. See this [upper body](results/output_upper_b
 https://github.com/aichr/video_inpaint/assets/113976014/386c8676-5fac-4453-adb0-5d993b997969
 
 
-- Current fix face unchanged by inpainting masks, so we can't edit the faces yet. To have more editing flexibility, 
+- The identity-preserving feature is naturally achieved by fixing the face unchanged using inpainting masks, so we can't edit the faces yet. To have more editing flexibility, 
 I tried [Instruct-Pix2Pix](inst_pix2pix.py) to achieve wilder editing but the output quality isn't consistent.
 
 - Having issue generating good hands for [Half body](results/output_half_body.mp4).

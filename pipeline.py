@@ -32,18 +32,30 @@ def main(run_inpaint=False, run_ebsynth=False, run_ffmpeg=True):
             os.makedirs(key_output_folder, exist_ok=True)
 
             sd_inpaint(input_img, input_mask, prompts, positive_prompt,
-                       negative_prompt, output_folder=key_output_folder)
+                       negative_prompt, output_folder=key_output_folder, save_grid=False)
 
     if run_ebsynth:
-        # select the best frames, currently hard-coded
+        # select the best frames, currently hand picked after getting the inpaint results
+        # For half body generation
+        # key_frames = {
+        #     "0001": "output_inpaint/0001/inpainting_24.png",
+        #     "0021": "output_inpaint/0021/inpainting_23.png",
+        #     "0041": "output_inpaint/0041/inpainting_0.png",
+        #     "0061": "output_inpaint/0061/inpainting_9.png",
+        #     "0081": "output_inpaint/0081/inpainting_25.png",
+        #     "0101": "output_inpaint/0101/inpainting_10.png",
+        #     "0121": "output_inpaint/0121/inpainting_15.png",
+        # }
+
+        # for upper body generation
         key_frames = {
-            "0001": "output_inpaint/0001/inpainting_24.png",
-            "0021": "output_inpaint/0021/inpainting_23.png",
-            "0041": "output_inpaint/0041/inpainting_0.png",
+            "0001": "output_inpaint/0001/inpainting_0.png",
+            "0021": "output_inpaint/0021/inpainting_6.png",
+            "0041": "output_inpaint/0041/inpainting_24.png",
             "0061": "output_inpaint/0061/inpainting_9.png",
-            "0081": "output_inpaint/0081/inpainting_25.png",
-            "0101": "output_inpaint/0101/inpainting_10.png",
-            "0121": "output_inpaint/0121/inpainting_15.png",
+            "0081": "output_inpaint/0081/inpainting_23.png",
+            "0101": "output_inpaint/0101/inpainting_8.png",
+            "0121": "output_inpaint/0121/inpainting_5.png",
         }
 
         os.makedirs(output_eb, exist_ok=True)
@@ -54,7 +66,7 @@ def main(run_inpaint=False, run_ebsynth=False, run_ffmpeg=True):
                 if j >= num_frames:
                     break
                 # -searchvoteiters 12 -patchmatchiters 6"
-                cmd = f"ebsynth/bin/ebsynth -style {key_frames[key]} -guide {input_frames[i]} {input_frames[j]} -output {output_eb}/{j:04d}.png"
+                cmd = f"ebsynth/bin/ebsynth -style {key_frames[key]} -guide {input_frames[i]} {input_frames[j]} -weight 4.0 -output {output_eb}/{j:04d}.png"
                 print(cmd)
                 os.system(cmd)
 

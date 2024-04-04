@@ -66,6 +66,7 @@ def main(run_inpaint=False, run_ebsynth=False, run_ffmpeg=True):
                 if j >= num_frames:
                     break
                 # -searchvoteiters 12 -patchmatchiters 6"
+                # TODO: use https://github.com/Trentonom0r3/Ezsynth
                 cmd = f"ebsynth/bin/ebsynth -style {key_frames[key]} -guide {input_frames[i]} {input_frames[j]} -weight 4.0 -output {output_eb}/{j:04d}.png"
                 print(cmd)
                 os.system(cmd)

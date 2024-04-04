@@ -4,4 +4,5 @@ __pycache__/*
 ebsynth/
 face_parsing/
 *.mp4
-output_ebsynth/
+ZoeDepth/
+output_*/

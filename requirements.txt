@@ -30,3 +30,4 @@ torchvision --upgrade
 tensorboard --upgrade
 controlnet_aux==0.0.7
 diffusers==0.28.0
+moviepy==1.0.3

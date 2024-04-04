@@ -6,6 +6,7 @@ from PIL import Image
 import torch
 import cv2
 import imageio
+from moviepy.editor import VideoFileClip, AudioClip
 
 
 def apply_mask(image, mask, grayscale=255):
@@ -185,8 +186,8 @@ def mask_bool_to_image(mask_bool, mask_name):
 
 def create_zoe_model():
     # Zoe_N
-    model_zoe_n = torch.hub.load(os.path.expanduser(
-        "~/fs/ZoeDepth"), "ZoeD_N", source="local", pretrained=True)
+    model_zoe_n = torch.hub.load(
+        "./ZoeDepth", "ZoeD_N", source="local", pretrained=True)
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     zoe = model_zoe_n.to(DEVICE)
     return zoe
@@ -256,7 +257,7 @@ def face_detect(frame, border=0, output_path=None):
 def ffmpeg_concat(input_file="%04d.png", fps=25, output_file="output.mp4"):
     """Concatenate multiple video files into a single video file using ffmpeg."""
     crf = 5  # lower the better
-    cmd = f"ffmpeg -framerate {fps} -i {input_file} -c:v libx264 -crf {crf} -pix_fmt yuv420p {output_file}"
+    cmd = f"ffmpeg -framerate {fps} -i {input_file} -c:v libx264 -crf {crf} -pix_fmt yuv420p {output_file} -y"
     print(cmd)
     os.system(cmd)
 
@@ -283,6 +284,18 @@ def frame_to_video(video_path: str, frame_dir: str, fps=30, log=True):
         writer.append_data(curImg)
 
     writer.close()
+
+
+def extract_audio(input_file):
+    video = VideoFileClip(input_file)
+    audio = video.audio
+    return audio
+
+
+def add_audio(input_video, audio_clip, output_file):
+    video = VideoFileClip(input_video)
+    video = video.set_audio(audio_clip)
+    video.write_videofile(output_file, codec="libx264", audio_codec="aac")
 
 
 if __name__ == "__main__":

@@ -1,14 +1,12 @@
+import argparse
 import os
 import glob
 from inpaint import sd_inpaint
 from prompt_constants import PROMPTS_FASHION
-from video_utils import get_fps, ffmpeg_concat
+from video_utils import get_fps, ffmpeg_concat, extract_audio, add_audio
 
 
 def main(run_inpaint=False, run_ebsynth=False, run_ffmpeg=True):
-    input_img = "./data/frames/0001.png"
-    input_mask = "./data/inpaint_mask/0001.png"
-
     input_video = "./data/demo_input.mp4"
     input_frame_dir = "./data/frames"
     input_mask_dir = "./data/inpaint_mask"
@@ -55,6 +53,7 @@ def main(run_inpaint=False, run_ebsynth=False, run_ffmpeg=True):
             for j in range(i+1, i + step+1):
                 if j >= num_frames:
                     break
+                # -searchvoteiters 12 -patchmatchiters 6"
                 cmd = f"ebsynth/bin/ebsynth -style {key_frames[key]} -guide {input_frames[i]} {input_frames[j]} -output {output_eb}/{j:04d}.png"
                 print(cmd)
                 os.system(cmd)
@@ -66,6 +65,21 @@ def main(run_inpaint=False, run_ebsynth=False, run_ffmpeg=True):
         ffmpeg_concat(input_file=f"{output_eb}/%04d.png",
                       output_file=output_video, fps=fps)
 
+        with_audio = True
+        if with_audio:
+            audio_clip = extract_audio(input_video)
+            add_audio(output_video, audio_clip,
+                      output_video.replace(".mp4", "_final.mp4"))
+
+        # add original audio to the video
+
 
 if __name__ == "__main__":
-    main()
+    # create a argument parser for main
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-ri", action="store_true", help="run inpaint")
+    parser.add_argument("-re", action="store_true", help="run ebsynth")
+    parser.add_argument("-rf", action="store_true", help="run ffmpeg")
+
+    args = parser.parse_args()
+    main(run_inpaint=args.ri, run_ebsynth=args.re, run_ffmpeg=args.rf)

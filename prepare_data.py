@@ -5,7 +5,10 @@ from video_utils import run_zoe_segment, face_detect, mask_bool_to_image, extrac
 
 def prepare(filename):
     # Extract frames from video
-    l, r, t, b = [608, 608, 56, 0]
+    # half body
+    # l, r, t, b = [608, 608, 56, 0]
+    # upper body
+    l, r, t, b = [640, 640, 80, 360]
     new_w, new_h = None, None
 
     extract_frames(
@@ -31,14 +34,13 @@ def prepare(filename):
     for input_img in input_images:
         x, y, w, h = face_detect(input_img, border=0)
         zoe_mask_bool = run_zoe_segment(
-            input_img, zoe=zoe, output_folder=zoe_output_dir, skip_existing=False)[0]
+            input_img, zoe=zoe, output_folder=zoe_output_dir, skip_existing=False, foreground_threshold=1.4)[0]
 
         # only keep mask below the face
         img_base = os.path.basename(input_img)
         zoe_mask_bool[:y+h, :] = False
         mask_bool_to_image(zoe_mask_bool, os.path.join(
             inpaint_mask_output_dir, img_base))
-
 
     """ optionally use face-parsing to get fine-grained face masks
     # Get face mask using face parsing
@@ -55,6 +57,8 @@ def prepare(filename):
     mask_bool_to_image(zoe_mask_bool, "final_mask.png")
     """
 
+    print()
+    print("finished preparing data")
 
 if __name__ == "__main__":
     filename = "./data/demo_input.mp4"
